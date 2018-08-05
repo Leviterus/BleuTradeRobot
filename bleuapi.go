@@ -30,19 +30,15 @@ type BalanceAPI struct {
 }
 
 type TradeAPI struct {
-	Success string   `json:"success"`
-	Message string   `json:"message"`
-	Result  []Result `json:"result"`
-}
-
-type Result struct {
-	Orderid string `json:"orderid"`
+	Success string            `json:"success"`
+	Message string            `json:"message"`
+	Result  map[string]string `json:"result"`
 }
 
 type WithdrawAPI struct {
-	Success string `json:"success"`
-	Message string `json:"message"`
-	Result  string `json:"result"`
+	Success string   `json:"success"`
+	Message string   `json:"message"`
+	Result  []string `json:"result"`
 }
 
 func ComputeHmac512(message string, key string) string {
@@ -110,6 +106,8 @@ func balanceHandler(m *tbot.Message) {
 		log.Fatal(jsonErr)
 	}
 
+	fmt.Println(people1.Result[16].CryptoAddress)
+
 	fmt.Println(people1)
 
 	for _, v := range people1.Result {
@@ -124,17 +122,17 @@ func balanceHandler(m *tbot.Message) {
 
 func withdrawHandler(m *tbot.Message) {
 
-	address := m.Vars["adress"]
+	address := m.Vars["address"]
 	quantity := m.Vars["quantity"]
 	currency := m.Vars["currency"]
 	safeKey := url.QueryEscape(apikey)
 
-	urlU := fmt.Sprintf("https://bleutrade.com/api/v2/account/withdraw?apikey=%s&address=%s&quantity=%s&currency=%s", safeKey, address, quantity, currency)
+	urlU := fmt.Sprintf("https://bleutrade.com/api/v2/account/withdraw?apikey=%s&currency=%s&quantity=%s&address=%s", safeKey, currency, quantity, address)
 
 	signkey := ComputeHmac512(urlU, apisecret)
 	safeSign := url.QueryEscape(signkey)
 
-	urlS := fmt.Sprintf("https://bleutrade.com/api/v2/account/withdraw?apikey=%s&apisign=%s&address=%s&quantity=%s&currency=%s", safeKey, safeSign, address, quantity, currency)
+	urlS := fmt.Sprintf("https://bleutrade.com/api/v2/account/withdraw?apikey=%s&apisign=%s&currency=%s&quantity=%s&address=%s", safeKey, safeSign, currency, quantity, address)
 
 	spaceClient := http.Client{
 		Timeout: time.Second * 5, // Maximum of 2 secs
@@ -164,6 +162,7 @@ func withdrawHandler(m *tbot.Message) {
 	if jsonErr != nil {
 		log.Fatal(jsonErr)
 	}
+	fmt.Println(people1)
 
 	if people1.Success == "true" {
 		m.Reply("Withdraw made with success!!")
@@ -222,7 +221,7 @@ func tradeBuyHandler(m *tbot.Message) {
 	fmt.Println(people1)
 
 	if people1.Success == "true" {
-		m.Reply("Buy ORDER made with sucess!!")
+		m.Reply(people1.Result["orderid"] + ": Buy ORDER made with sucess!!")
 	} else {
 		m.Reply("Buy ORDER has failed.")
 	}
@@ -277,7 +276,7 @@ func tradeSellHandler(m *tbot.Message) {
 	}
 
 	if people1.Success == "true" {
-		m.Reply("Sell ORDER made with sucess!!")
+		m.Reply(people1.Result["orderid"] + "Sell ORDER made with sucess!!")
 	} else {
 		m.Reply("Sell ORDER has failed.")
 	}
