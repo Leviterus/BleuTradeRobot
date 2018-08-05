@@ -30,11 +30,13 @@ type BalanceAPI struct {
 }
 
 type TradeAPI struct {
-	Success string `json:"success"`
-	Message string `json:"message"`
-	Result  struct {
-		Orderid string `json:"orderid"`
-	} `json:"result"`
+	Success string   `json:"success"`
+	Message string   `json:"message"`
+	Result  []Result `json:"result"`
+}
+
+type Result struct {
+	Orderid string `json:"orderid"`
 }
 
 type WithdrawAPI struct {
@@ -127,49 +129,43 @@ func withdrawHandler(m *tbot.Message) {
 	currency := m.Vars["currency"]
 	safeKey := url.QueryEscape(apikey)
 
-	urlU := fmt.Sprintf("https://bleutrade.com/api/v2/account/withdraw?apikey=%s", safeKey)
+	urlU := fmt.Sprintf("https://bleutrade.com/api/v2/account/withdraw?apikey=%s&address=%s&quantity=%s&currency=%s", safeKey, address, quantity, currency)
 
 	signkey := ComputeHmac512(urlU, apisecret)
 	safeSign := url.QueryEscape(signkey)
 
 	urlS := fmt.Sprintf("https://bleutrade.com/api/v2/account/withdraw?apikey=%s&apisign=%s&address=%s&quantity=%s&currency=%s", safeKey, safeSign, address, quantity, currency)
 
-	// Build the request
-	req, err := http.NewRequest("GET", urlS, nil)
+	spaceClient := http.Client{
+		Timeout: time.Second * 5, // Maximum of 2 secs
+	}
+
+	req, err := http.NewRequest(http.MethodGet, urlS, nil)
 	if err != nil {
-		log.Fatal("NewRequest: ", err)
-		return
+		log.Fatal(err)
 	}
 
-	// For control over HTTP client headers,
-	// redirect policy, and other settings,
-	// create a Client
-	// A Client is an HTTP client
-	client := &http.Client{}
+	req.Header.Set("User-Agent", "spacecount-tutorial")
 
-	// Send the request via a client
-	// Do sends an HTTP request and
-	// returns an HTTP response
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatal("Do: ", err)
-		return
+	res, getErr := spaceClient.Do(req)
+	if getErr != nil {
+		log.Fatal(getErr)
 	}
 
-	// Callers should close resp.Body
-	// when done reading from it
-	// Defer the closing of the body
-	defer resp.Body.Close()
-
-	// Fill the record with the data from the JSON
-	var record WithdrawAPI
-
-	// Use json.Decode for reading streams of JSON data
-	if err := json.NewDecoder(resp.Body).Decode(&record); err != nil {
-		log.Println(err)
+	body, readErr := ioutil.ReadAll(res.Body)
+	if readErr != nil {
+		log.Fatal(readErr)
 	}
 
-	if record.Success == "true" {
+	people1 := WithdrawAPI{}
+	fmt.Println(people1)
+
+	jsonErr := json.Unmarshal(body, &people1)
+	if jsonErr != nil {
+		log.Fatal(jsonErr)
+	}
+
+	if people1.Success == "true" {
 		m.Reply("Withdraw made with success!!")
 	} else {
 		m.Reply("Withdraw has failed.")
@@ -188,49 +184,44 @@ func tradeBuyHandler(m *tbot.Message) {
 	quantity := m.Vars["quantity"]
 	safeKey := url.QueryEscape(apikey)
 
-	urlU := fmt.Sprintf("https://bleutrade.com/api/v2/market/buylimit?apikey=%s", safeKey)
+	urlU := fmt.Sprintf("https://bleutrade.com/api/v2/market/buylimit?apikey=%s&market=%s&rate=%s&quantity=%s", safeKey, market, rate, quantity)
 
 	signkey := ComputeHmac512(urlU, apisecret)
 	safeSign := url.QueryEscape(signkey)
 
 	urlS := fmt.Sprintf("https://bleutrade.com/api/v2/market/buylimit?apikey=%s&apisign=%s&market=%s&rate=%s&quantity=%s", safeKey, safeSign, market, rate, quantity)
 
-	// Build the request
-	req, err := http.NewRequest("GET", urlS, nil)
+	spaceClient := http.Client{
+		Timeout: time.Second * 5, // Maximum of 2 secs
+	}
+
+	req, err := http.NewRequest(http.MethodGet, urlS, nil)
 	if err != nil {
-		log.Fatal("NewRequest: ", err)
-		return
+		log.Fatal(err)
 	}
 
-	// For control over HTTP client headers,
-	// redirect policy, and other settings,
-	// create a Client
-	// A Client is an HTTP client
-	client := &http.Client{}
+	req.Header.Set("User-Agent", "spacecount-tutorial")
 
-	// Send the request via a client
-	// Do sends an HTTP request and
-	// returns an HTTP response
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatal("Do: ", err)
-		return
+	res, getErr := spaceClient.Do(req)
+	if getErr != nil {
+		log.Fatal(getErr)
 	}
 
-	// Callers should close resp.Body
-	// when done reading from it
-	// Defer the closing of the body
-	defer resp.Body.Close()
-
-	// Fill the record with the data from the JSON
-	var record TradeAPI
-
-	// Use json.Decode for reading streams of JSON data
-	if err := json.NewDecoder(resp.Body).Decode(&record); err != nil {
-		log.Println(err)
+	body, readErr := ioutil.ReadAll(res.Body)
+	if readErr != nil {
+		log.Fatal(readErr)
 	}
 
-	if record.Success == "true" {
+	people1 := TradeAPI{}
+	fmt.Println(people1)
+
+	jsonErr := json.Unmarshal(body, &people1)
+	if jsonErr != nil {
+		log.Fatal(jsonErr)
+	}
+	fmt.Println(people1)
+
+	if people1.Success == "true" {
 		m.Reply("Buy ORDER made with sucess!!")
 	} else {
 		m.Reply("Buy ORDER has failed.")
@@ -249,49 +240,43 @@ func tradeSellHandler(m *tbot.Message) {
 	quantity := m.Vars["quantity"]
 	safeKey := url.QueryEscape(apikey)
 
-	urlU := fmt.Sprintf("https://bleutrade.com/api/v2/market/selllimit?apikey=%s", safeKey)
+	urlU := fmt.Sprintf("https://bleutrade.com/api/v2/market/selllimit?apikey=%s&market=%s&rate=%s&quantity=%s", safeKey, market, rate, quantity)
 
 	signkey := ComputeHmac512(urlU, apisecret)
 	safeSign := url.QueryEscape(signkey)
 
 	urlS := fmt.Sprintf("https://bleutrade.com/api/v2/market/selllimit?apikey=%s&apisign=%s&market=%s&rate=%s&quantity=%s", safeKey, safeSign, market, rate, quantity)
 
-	// Build the request
-	req, err := http.NewRequest("GET", urlS, nil)
+	spaceClient := http.Client{
+		Timeout: time.Second * 5, // Maximum of 2 secs
+	}
+
+	req, err := http.NewRequest(http.MethodGet, urlS, nil)
 	if err != nil {
-		log.Fatal("NewRequest: ", err)
-		return
+		log.Fatal(err)
 	}
 
-	// For control over HTTP client headers,
-	// redirect policy, and other settings,
-	// create a Client
-	// A Client is an HTTP client
-	client := &http.Client{}
+	req.Header.Set("User-Agent", "spacecount-tutorial")
 
-	// Send the request via a client
-	// Do sends an HTTP request and
-	// returns an HTTP response
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatal("Do: ", err)
-		return
+	res, getErr := spaceClient.Do(req)
+	if getErr != nil {
+		log.Fatal(getErr)
 	}
 
-	// Callers should close resp.Body
-	// when done reading from it
-	// Defer the closing of the body
-	defer resp.Body.Close()
-
-	// Fill the record with the data from the JSON
-	var record TradeAPI
-
-	// Use json.Decode for reading streams of JSON data
-	if err := json.NewDecoder(resp.Body).Decode(&record); err != nil {
-		log.Println(err)
+	body, readErr := ioutil.ReadAll(res.Body)
+	if readErr != nil {
+		log.Fatal(readErr)
 	}
 
-	if record.Success == "true" {
+	people1 := TradeAPI{}
+	fmt.Println(people1)
+
+	jsonErr := json.Unmarshal(body, &people1)
+	if jsonErr != nil {
+		log.Fatal(jsonErr)
+	}
+
+	if people1.Success == "true" {
 		m.Reply("Sell ORDER made with sucess!!")
 	} else {
 		m.Reply("Sell ORDER has failed.")
