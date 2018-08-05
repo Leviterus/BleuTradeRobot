@@ -16,13 +16,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	bot.Handle("/answer", "42")
 	bot.HandleFunc("/api {key}", keyHandler)
 	bot.HandleFunc("/secret {key}", secretHandler)
 	bot.HandleFunc("/hi", HiHandler)
 	bot.HandleFunc("/balance", balanceHandler)
-	bot.HandleFunc("/withdraw", withdrawHandler)
-	bot.HandleFunc("/trade", tradeHandler)
+	bot.HandleFunc("/withdraw {currency} {quantity} {address}", withdrawHandler)
+	bot.HandleFunc("/tradebuy {market} {rate} {quantity}", tradeBuyHandler)
+	bot.HandleFunc("/tradesell {market} {rate} {quantity}", tradeSellHandler)
 
 	bot.ListenAndServe()
 }

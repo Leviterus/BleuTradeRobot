@@ -16,7 +16,7 @@ import (
 	"github.com/yanzay/tbot"
 )
 
-type BleuAPI struct {
+type BalanceAPI struct {
 	Success string `json:"success"`
 	Message string `json:"message"`
 	Result  []struct {
@@ -27,6 +27,20 @@ type BleuAPI struct {
 		CryptoAddress string `json:"CryptoAddress"`
 		IsActive      string `json:"IsActive"`
 	} `json:"result"`
+}
+
+// type TradeAPI struct {
+// 	Success string `json:"success"`
+// 	Message string `json:"message"`
+// 	Result  struct {
+// 		Orderid string `json:"orderid"`
+// 	} `json:"result"`
+// }
+
+type WithdrawAPI struct {
+	Success string `json:"success"`
+	Message string `json:"message"`
+	Result  string `json:"result"`
 }
 
 func ComputeHmac512(message string, key string) string {
@@ -65,62 +79,11 @@ func balanceHandler(m *tbot.Message) {
 	urlS := fmt.Sprintf("https://bleutrade.com/api/v2/account/getbalances?apikey=%s&apisign=%s", safeKey, safeSign)
 	fmt.Println(urlS)
 
-	// Build the request
-	// req, err := http.NewRequest("GET", urlS, nil)
-	// if err != nil {
-	// 	log.Fatal("NewRequest: ", err)
-	// 	return
-	// }
-
-	// // For control over HTTP client headers,
-	// // redirect policy, and other settings,
-	// // create a Client
-	// // A Client is an HTTP client
-	// client := &http.Client{}
-
-	// // Send the request via a client
-	// // Do sends an HTTP request and
-	// // returns an HTTP response
-	// resp, err := client.Do(req)
-	// if err != nil {
-	// 	log.Fatal("Do: ", err)
-	// 	return
-	// }
-
-	// // Callers should close resp.Body
-	// // when done reading from it
-	// // Defer the closing of the body
-	// defer resp.Body.Close()
-
-	// if err != nil {
-	// 	fmt.Print(err.Error())
-	// 	os.Exit(1)
-	// }
-
-	// var record BleuAPI
-	// // // fmt.Println(record)
-
-	// // Use json.Decode for reading streams of JSON data
-	// // if err := json.NewDecoder(resp.Body).Decode(&record); err != nil {
-	// // 	log.Println(err)
-	// // }
-
-	// fmt.Println(record)
-
-	// pingJSON := make(map[string][]BleuAPI)
-	// erro := json.Unmarshal([]byte(resp.Body), &pingJSON)
-
-	// if err != nil {
-	// 	panic(err)
-	// }
-
-	// url := urlS
-
 	spaceClient := http.Client{
-		Timeout: time.Second * 4, // Maximum of 2 secs
+		Timeout: time.Second * 5, // Maximum of 2 secs
 	}
 
-	req, err := http.NewRequest(http.MethodGet, "https://bleutrade.com/api/v2/account/getbalances?apikey=700e123416e568aeec72b5e9313d8b00&apisign=3cbd5b8a556003d210bcac4942c3e9a7f8d8cb4053950c2149c8f6d135a8e21c670a310ad696140af74ac3929bfbe059ff36c26cfc6830256aed0d63873c74a2", nil)
+	req, err := http.NewRequest(http.MethodGet, urlS, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -137,7 +100,7 @@ func balanceHandler(m *tbot.Message) {
 		log.Fatal(readErr)
 	}
 
-	people1 := BleuAPI{}
+	people1 := BalanceAPI{}
 	fmt.Println(people1)
 
 	jsonErr := json.Unmarshal(body, &people1)
@@ -147,24 +110,29 @@ func balanceHandler(m *tbot.Message) {
 
 	fmt.Println(people1)
 
-	// m.Vars contains all variables, parsed during routing
 	for _, v := range people1.Result {
-		fmt.Println(v.Balance)
-		m.Reply(v.Balance)
+		if v.Balance != "0.00000000" {
+			value := fmt.Sprintf("%s: %s", v.Currency, v.Balance)
+			m.Reply(value)
+		}
+
 	}
 
 }
 
 func withdrawHandler(m *tbot.Message) {
 
+	address := m.Vars["adress"]
+	quantity := m.Vars["quantity"]
+	currency := m.Vars["currency"]
 	safeKey := url.QueryEscape(apikey)
 
-	urlU := fmt.Sprintf("https://bleutrade.com/api/v2/account/getbalances?apikey='%s'", safeKey)
+	urlU := fmt.Sprintf("https://bleutrade.com/api/v2/account/withdraw?apikey=%s", safeKey)
 
 	signkey := ComputeHmac512(urlU, apisecret)
 	safeSign := url.QueryEscape(signkey)
 
-	urlS := fmt.Sprintf("https://bleutrade.com/api/v2/account/getbalances?apikey='%s'&apisign='%s'", safeKey, safeSign)
+	urlS := fmt.Sprintf("https://bleutrade.com/api/v2/account/withdraw?apikey=%s&apisign=%s&address=%s&quantity=%s&currency=%s", safeKey, safeSign, address, quantity, currency)
 
 	// Build the request
 	req, err := http.NewRequest("GET", urlS, nil)
@@ -194,11 +162,17 @@ func withdrawHandler(m *tbot.Message) {
 	defer resp.Body.Close()
 
 	// Fill the record with the data from the JSON
-	var record BleuAPI
+	var record WithdrawAPI
 
 	// Use json.Decode for reading streams of JSON data
 	if err := json.NewDecoder(resp.Body).Decode(&record); err != nil {
 		log.Println(err)
+	}
+
+	if record.Success == "true" {
+		m.Reply("Withdraw made with success!!")
+	} else {
+		m.Reply("Withdraw has failed.")
 	}
 
 	// m.Vars contains all variables, parsed during routing
@@ -207,18 +181,124 @@ func withdrawHandler(m *tbot.Message) {
 	// 	}
 }
 
-func tradeHandler(m *tbot.Message) {
-	// m.Vars contains all variables, parsed during routing
-	apikey = m.Vars["key"]
+func tradeBuyHandler(m *tbot.Message) {
 
-	fmt.Println(apikey)
-	// Convert string variable to integer seconds value
-	seconds, err := strconv.Atoi(apikey)
+	market := m.Vars["market"]
+	rate := m.Vars["rate"]
+	quantity := m.Vars["quantity"]
+	safeKey := url.QueryEscape(apikey)
+
+	urlU := fmt.Sprintf("https://bleutrade.com/api/v2/market/buylimit?apikey=%s", safeKey)
+
+	signkey := ComputeHmac512(urlU, apisecret)
+	safeSign := url.QueryEscape(signkey)
+
+	urlS := fmt.Sprintf("https://bleutrade.com/api/v2/market/buylimit?apikey=%s&apisign=%s&market=%s&rate=%s&quantity=%s", safeKey, safeSign, market, rate, quantity)
+
+	// Build the request
+	req, err := http.NewRequest("GET", urlS, nil)
 	if err != nil {
-		m.Reply("Invalid API Key")
+		log.Fatal("NewRequest: ", err)
 		return
 	}
-	m.Replyf("Timer for %d seconds started", seconds)
-	time.Sleep(time.Duration(seconds) * time.Second)
-	m.Reply("Time out!")
+
+	// For control over HTTP client headers,
+	// redirect policy, and other settings,
+	// create a Client
+	// A Client is an HTTP client
+	client := &http.Client{}
+
+	// Send the request via a client
+	// Do sends an HTTP request and
+	// returns an HTTP response
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatal("Do: ", err)
+		return
+	}
+
+	// Callers should close resp.Body
+	// when done reading from it
+	// Defer the closing of the body
+	defer resp.Body.Close()
+
+	// Fill the record with the data from the JSON
+	var record WithdrawAPI
+
+	// Use json.Decode for reading streams of JSON data
+	if err := json.NewDecoder(resp.Body).Decode(&record); err != nil {
+		log.Println(err)
+	}
+
+	if record.Success == "true" {
+		m.Reply("Buy ORDER made with sucess!!")
+	} else {
+		m.Reply("Buy ORDER has failed.")
+	}
+
+	// m.Vars contains all variables, parsed during routing
+	// 	for _, v := range record.Result {
+	// 		m.Reply(FloatToString(v.Balance))
+	// 	}
+}
+
+func tradeSellHandler(m *tbot.Message) {
+
+	market := m.Vars["market"]
+	rate := m.Vars["rate"]
+	quantity := m.Vars["quantity"]
+	safeKey := url.QueryEscape(apikey)
+
+	urlU := fmt.Sprintf("https://bleutrade.com/api/v2/market/selllimit?apikey=%s", safeKey)
+
+	signkey := ComputeHmac512(urlU, apisecret)
+	safeSign := url.QueryEscape(signkey)
+
+	urlS := fmt.Sprintf("https://bleutrade.com/api/v2/market/selllimit?apikey=%s&apisign=%s&market=%s&rate=%s&quantity=%s", safeKey, safeSign, market, rate, quantity)
+
+	// Build the request
+	req, err := http.NewRequest("GET", urlS, nil)
+	if err != nil {
+		log.Fatal("NewRequest: ", err)
+		return
+	}
+
+	// For control over HTTP client headers,
+	// redirect policy, and other settings,
+	// create a Client
+	// A Client is an HTTP client
+	client := &http.Client{}
+
+	// Send the request via a client
+	// Do sends an HTTP request and
+	// returns an HTTP response
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatal("Do: ", err)
+		return
+	}
+
+	// Callers should close resp.Body
+	// when done reading from it
+	// Defer the closing of the body
+	defer resp.Body.Close()
+
+	// Fill the record with the data from the JSON
+	var record WithdrawAPI
+
+	// Use json.Decode for reading streams of JSON data
+	if err := json.NewDecoder(resp.Body).Decode(&record); err != nil {
+		log.Println(err)
+	}
+
+	if record.Success == "true" {
+		m.Reply("Sell ORDER made with sucess!!")
+	} else {
+		m.Reply("Sell ORDER has failed.")
+	}
+
+	// m.Vars contains all variables, parsed during routing
+	// 	for _, v := range record.Result {
+	// 		m.Reply(FloatToString(v.Balance))
+	// 	}
 }
