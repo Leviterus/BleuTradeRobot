@@ -29,13 +29,13 @@ type BalanceAPI struct {
 	} `json:"result"`
 }
 
-// type TradeAPI struct {
-// 	Success string `json:"success"`
-// 	Message string `json:"message"`
-// 	Result  struct {
-// 		Orderid string `json:"orderid"`
-// 	} `json:"result"`
-// }
+type TradeAPI struct {
+	Success string `json:"success"`
+	Message string `json:"message"`
+	Result  struct {
+		Orderid string `json:"orderid"`
+	} `json:"result"`
+}
 
 type WithdrawAPI struct {
 	Success string `json:"success"`
@@ -223,7 +223,7 @@ func tradeBuyHandler(m *tbot.Message) {
 	defer resp.Body.Close()
 
 	// Fill the record with the data from the JSON
-	var record WithdrawAPI
+	var record TradeAPI
 
 	// Use json.Decode for reading streams of JSON data
 	if err := json.NewDecoder(resp.Body).Decode(&record); err != nil {
@@ -284,7 +284,7 @@ func tradeSellHandler(m *tbot.Message) {
 	defer resp.Body.Close()
 
 	// Fill the record with the data from the JSON
-	var record WithdrawAPI
+	var record TradeAPI
 
 	// Use json.Decode for reading streams of JSON data
 	if err := json.NewDecoder(resp.Body).Decode(&record); err != nil {
